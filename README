@@ -1,0 +1,12 @@
+The Makefile has to be adapted to the local machine, i.e. at least the LIB_DAI 
+variable needs to point to the libDAI folder. 
+
+To compile libSTREAM call:
+	make all
+
+Prepare PYTHONPATH variable by setting:
+	export PYTHONPATH=$PYTHONPATH:.
+
+To test the build call:
+	./src/main/python/compareLiftedSampling.py ./resources/smokers1_3p.fg
+

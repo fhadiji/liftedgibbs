@@ -40,7 +40,7 @@ src/main/cpp/wrapper%.o: src/main/cpp/wrapper%.cpp
 libSTREAMWrapper.so: $(WRAPPER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L$(LIB_DAI)/lib -Wl,-Bstatic  -Wl,-Bdynamic -Wl,-h -Wl,libSTREAM.so -Wl,-no-undefined -shared -o"libSTREAMWrapper.so"  ./libSTREAM.so $(WRAPPER_OBJS) -lboost_python -lutil -lpthread -ldl -ldai -lpython2.6
+	g++ -L$(LIB_DAI)/lib -L"." -Wl,-no-undefined -shared -o"libSTREAMWrapper.so" $(WRAPPER_OBJS) -lboost_python -lutil -lpthread -ldl -ldai -lpython2.6 -lSTREAM
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -55,7 +55,7 @@ src/main/cpp/%.o: src/main/cpp/%.cpp
 libSTREAM.so: $(OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L"/home/stream/lib/libDAI/libDAI-0.2.3/lib" -Wl,-no-undefined -shared -o"libSTREAM.so" $(OBJS) -ldai
+	g++ -L$(LIB_DAI)"/lib" -Wl,-no-undefined -shared -o"libSTREAM.so" $(OBJS) -ldai
 	@echo 'Finished building target: $@'
 	@echo ' '
 
