@@ -6,6 +6,7 @@
  */
 #include <STREAM/Gibbs/LiftedGibbs.h>
 #include <dai/util.h>
+#include <stdio.h>
 
 namespace stream {
 
@@ -122,87 +123,147 @@ inline void LiftedGibbs::resampleVar( size_t gndVarIdx ) {
 	size_t oldState = _states[gndVarIdx];
 	_states[gndVarIdx] = getVarDist(gndVarIdx).draw();
 	if (oldState != _states[gndVarIdx]) {
-		for (size_t i=0; i<_fg.nrFactors(); i++) {
-			vector<vector<vector<size_t> > > newConfigMap;
-			newConfigMap.reserve(_fg.factor(i).states());
-			for (size_t j=0; j<_fg.factor(i).states(); j++) {
-				newConfigMap.push_back(vector<vector<size_t> >());
-			}
+		updateConfigs( gndVarIdx );
+	}
+}
 
-			for (size_t j=0; j<_fg.factor(i).states(); j++) {
-				for (size_t k=0; k < _configMapping[i][j].size(); k++) {
-					if (find(_configMapping[i][j][k].begin(), _configMapping[i][j][k].end(), gndVarIdx) != _configMapping[i][j][k].end()) {
-						size_t skip = 1;
-						for (size_t l=0; l<_configMapping[i][j][k].size(); l++) {
-							if (gndVarIdx == _configMapping[i][j][k][l]) {
-								break;
-							} else {
-								skip *= 2;
-							}
-						}
+void LiftedGibbs::updateConfigs(size_t gndVarIdx) {
+	vector<vector<vector<size_t> > > newConfigs;
+	size_t j,skip;
+	size_t superVarIdx = _fg.reprV(gndVarIdx);
+	vector<size_t>::const_iterator pos;
+	vector<vector<size_t> >::reverse_iterator rPos;
 
-						if (oldState == 0)
-							newConfigMap[j + skip].push_back(_configMapping[i][j][k]);
-						else
-							newConfigMap[j - skip].push_back(_configMapping[i][j][k]);
-					} else {
-						newConfigMap[j].push_back(_configMapping[i][j][k]);
+	foreach(const BipartiteGraph::Neighbor& tmpFac, _fg.nbV(superVarIdx)) {
+		if (_sample_count == 0) {
+			dai::operator <<(cout, _configMapping[tmpFac]) << endl;
+		}
+
+		newConfigs.assign(_fg.factor(tmpFac).states(), vector<vector<size_t> >());
+		for (j=0; j<_fg.factor(tmpFac).states(); j++) {
+			for ( rPos=_configMapping[tmpFac][j].rbegin() ; rPos < _configMapping[tmpFac][j].rend(); ++rPos ) {
+				pos = find(rPos->begin(), rPos->end(), gndVarIdx);
+				if (pos != rPos->end()) {
+					skip = getFactorEntryDiff(pos - rPos->begin());
+
+					if (_sample_count == 0) {
+						cout << gndVarIdx << " found in ";
+						dai::operator <<(cout, *rPos) << endl;
 					}
+
+					if (_states[gndVarIdx] == 0) {
+						newConfigs[j - skip].push_back(*rPos);
+					} else {
+						newConfigs[j + skip].push_back(*rPos);
+					}
+
+					_configMapping[tmpFac][j].erase(rPos.base()-1);
 				}
 			}
-			_configMapping[i] = newConfigMap;
 		}
+
+		if (_sample_count == 0) {
+			dai::operator << (cout, _configMapping[tmpFac]);
+			cout << " + ";
+			dai::operator << (cout, newConfigs) << endl;
+		}
+
+		for (j=0; j<_fg.factor(tmpFac).states(); j++) {
+			if (newConfigs[j].size() > 0) {
+				_configMapping[tmpFac][j].insert(_configMapping[tmpFac][j].end(),newConfigs[j].begin(),newConfigs[j].end());
+			}
+		}
+
+		if (_sample_count == 0) {
+			dai::operator << (cout, _configMapping[tmpFac]);
+		}
+
 	}
 }
 
 Prob LiftedGibbs::getVarDist( size_t gndVarIdx ) {
 	Prob iGivenMB( 2, 1.0 );
-
 	size_t skip, entry;
 	vector<size_t>::iterator pos;
+	size_t superVarIdx = _fg.reprV(gndVarIdx);
+	size_t j, k, l,posNum;
 	vector<size_t> posAndCount;
-	for (size_t i=0; i<_fg.nrFactors(); i++) {
-		for (size_t j=0; j<_fg.factor(i).states(); j++) {
+	bool possiblePos;
+	unsigned int ix;
+	if (_sample_count == 0) {
+		cout << "state is " << _states[gndVarIdx] << endl;
+		cout << "Neighbors of " << gndVarIdx << endl;
+	}
+	foreach(const BipartiteGraph::Neighbor& tmpFac, _fg.nbV(superVarIdx)) {
+		if (_sample_count == 0) {
+			cout << "\t" << tmpFac << ": " << _fg.factor(tmpFac) << endl << "\t";
+			dai::operator <<(cout, _fg.count(superVarIdx,tmpFac.iter)) << endl;
+		}
+		for (j=0; j<_configMapping[tmpFac].size(); j++) {
 			if (false) {
-				for (size_t k=0; k<_configMapping[i][j].size(); k++) {
-					pos = find(_configMapping[i][j][k].begin(), _configMapping[i][j][k].end(), gndVarIdx);
-					if (pos != _configMapping[i][j][k].end()) {
-						skip = pow(2, pos - _configMapping[i][j][k].begin());
+				for (k=0; k<_configMapping[tmpFac][j].size(); k++) {
+					pos = find(_configMapping[tmpFac][j][k].begin(), _configMapping[tmpFac][j][k].end(), gndVarIdx);
+					if (pos != _configMapping[tmpFac][j][k].end()) {
+						skip = getFactorEntryDiff(pos - _configMapping[tmpFac][j][k].begin());
 						entry = j - (_states[gndVarIdx] * skip);
-						for (size_t l=0; l<2; l++) {
-							iGivenMB[l] *= _fg.factor(i)[entry];
+						if (_sample_count == 0) {
+							cout << "\t\t" << pos - _configMapping[tmpFac][j][k].begin() << " ";
+							dai::operator <<(cout, _configMapping[tmpFac][j][k]);
+							printf (" [%f|%f]", _fg.factor(tmpFac)[entry], _fg.factor(tmpFac)[entry + skip]);
+							cout << endl;
+						}
+						for (l=0; l<2; l++) {
+							iGivenMB[l] *= _fg.factor(tmpFac)[entry];
 							entry += skip;
 						}
 					}
 				}
 			} else {
-
-				double val = log(_fg.factor(i).states()) / log(2);
-				posAndCount.assign(static_cast<int>(val), 0);
-				for (size_t k=0; k<_configMapping[i][j].size(); k++) {
-					pos = find(_configMapping[i][j][k].begin(), _configMapping[i][j][k].end(), gndVarIdx);
-					if (pos != _configMapping[i][j][k].end()) {
-						if (_sample_count == 0) {
-							cout << "line: " << j;
-							dai::operator <<(cout, _configMapping[i][j][k]) << endl;
+				possiblePos = false;
+				ix = 1;
+				for (k=0;k<_fg.count(superVarIdx,tmpFac.iter).size(); k++) {
+					if (_fg.count(superVarIdx,tmpFac.iter)[k] > 0) {
+						if (j & ix && _states[gndVarIdx] == 1 or !(j & ix) && _states[gndVarIdx] == 0 ) {
+							possiblePos = true;
+							break;
 						}
-						posAndCount[pos - _configMapping[i][j][k].begin()]++;
+					}
+					ix <<= 1;
+				}
+				if (!possiblePos) {
+					continue;
+				}
+
+				posAndCount.assign(_fg.count(superVarIdx,tmpFac.iter).size(), 0);
+				for (k=0; k<_configMapping[tmpFac][j].size(); k++) {
+					pos = find(_configMapping[tmpFac][j][k].begin(), _configMapping[tmpFac][j][k].end(), gndVarIdx);
+					if (pos != _configMapping[tmpFac][j][k].end()) {
+						posNum = pos - _configMapping[tmpFac][j][k].begin();
+						posAndCount[posNum]++;
 					}
 				}
 
 				for (size_t k=0; k<posAndCount.size(); k++) {
 					if (posAndCount[k] > 0) {
-						skip = pow(2, k);
+						skip = getFactorEntryDiff(k);
 						entry = j - (_states[gndVarIdx] * skip);
-						for (size_t l=0; l<2; l++) {
-							iGivenMB[l] *= pow(_fg.factor(i)[entry], posAndCount[k]);
-							entry += skip;
+						if (posAndCount[k] == 1) {
+							for (l=0; l<2; l++) {
+								iGivenMB[l] *= _fg.factor(tmpFac)[entry];
+								entry += skip;
+							}
+						} else {
+							for (l=0; l<2; l++) {
+								iGivenMB[l] *= pow(_fg.factor(tmpFac)[entry], posAndCount[k]);
+								entry += skip;
+							}
 						}
 					}
 				}
 			}
 		}
 	}
+
 	if (_sample_count == 0) {
 		cout << "iGivenMB: " << iGivenMB << endl;
 	}
@@ -213,8 +274,16 @@ Prob LiftedGibbs::getVarDist( size_t gndVarIdx ) {
 inline size_t LiftedGibbs::getFactorEntry(const vector<size_t>& groundMB) {
 }
 
-inline size_t LiftedGibbs::getFactorEntryDiff( const vector<size_t>& groundMB , size_t i ) {
-
+inline size_t LiftedGibbs::getFactorEntryDiff( size_t pos ) {
+//	skip = 1;
+//	for (l=0; l<rPos->size(); l++) {
+//		if (gndVarIdx == (*rPos)[l]) {
+//			break;
+//		} else {
+//			skip *= 2;
+//		}
+//	}
+	return pow(2, pos);
 }
 
 Factor LiftedGibbs::beliefV( size_t superVarIdx ) const {

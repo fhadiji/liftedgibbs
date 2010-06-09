@@ -98,8 +98,9 @@ public:
 		/// Calculates linear index into factor \a I corresponding to the current state of a particular ground MB
 		size_t getFactorEntry( const std::vector<size_t>& groundMB);
 		/// Calculates the differences between linear indices into factor \a I corresponding with a state change of variable \a i
-		size_t getFactorEntryDiff( const std::vector<size_t>& groundMB, size_t i );
+		size_t getFactorEntryDiff( size_t i );
 		void updateCounts();
+		void updateConfigs(size_t gndVarIdx);
 };
 
 }

@@ -68,6 +68,7 @@ size_t (Var::*const_label)() const = &Var::label;
 size_t (Var::*const_states)() const = &Var::states;
 
 const VarSet& (dai::Factor::*const_vars)() const = &dai::Factor::vars;
+const dai::Prob& (dai::Factor::*factor_p_const)() const = &dai::Factor::p;
 
 const dai::Factor & (dai::FactorGraph::*const_factor)(size_t) const = &dai::FactorGraph::factor;
 void (dai::FactorGraph::*clamp_idx)(size_t, size_t, bool) = &dai::FactorGraph::clamp;
@@ -208,6 +209,8 @@ void export_dai() {
 		.def(vector_indexing_suite<std::vector<Var> >())
 		.def("push_back", &vector<Var>::push_back)
 		.def("size", &vector<Var>::size)
+		.def("clear", &vector<Var>::clear)
+		.def("reserve", &vector<Var>::reserve)
 		;
 
 	class_<SmallSet<Var> >("smallSet_var")
@@ -227,12 +230,14 @@ void export_dai() {
 
 	class_<dai::Factor>("Factor", init<VarSet>())
 		.def(init<VarSet, double>())
+		.def(init<const dai::VarSet&, const dai::Prob&>())
 		.def("__getitem__", &factor_getitem)
 		.def("__setitem__", &factor_setitem)
 		.def("__len__", &dai::Factor::states)
 		.def(str(self))
 		.def("vars", const_vars, return_internal_reference<>())
 		.def("states", &dai::Factor::states)
+		.def("p", factor_p_const, return_internal_reference<>())
 		;
 
 	class_<vector<dai::Factor> >("vector_factor")
@@ -334,5 +339,9 @@ void export_dai() {
 		.def("index", &multifor::operator size_t)
 		.def("__getitem__", &multifor::operator[])
 		.def("next", multifor_next)
+		;
+
+	class_<Permute>("Permute", init<vector<Var> >())
+		.def("convertLinearIndex", &Permute::convertLinearIndex)
 		;
 }

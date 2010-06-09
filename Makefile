@@ -26,6 +26,9 @@ WRAPPER_CPP_DEPS := \
 ./src/main/cpp/wrapperDAI.d \
 ./src/main/cpp/wrapperSTREAM.d \
 
+WRAPPER_LIBS := -lutil -lpython2.6 -lSTREAM -lboost_python -ldai -lpthread -ldl
+
+
 # All Target
 all: libSTREAM.so libSTREAMWrapper.so
 
@@ -33,14 +36,14 @@ all: libSTREAM.so libSTREAMWrapper.so
 src/main/cpp/wrapper%.o: src/main/cpp/wrapper%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -DDEMO_DOCSTRING_SHOW_ALL=true -I"./include" -I$(LIB_DAI)"/include" -I/usr/include/python2.6 -O3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o"$@" "$<"
+	g++ -DDEMO_DOCSTRING_SHOW_ALL=true -I./include -I$(LIB_DAI)/include -I/usr/include/python2.6 -O3 -Wall -c -fmessage-length=0 -ftemplate-depth-128 -fno-inline -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o"$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 libSTREAMWrapper.so: $(WRAPPER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L$(LIB_DAI)/lib -L"." -Wl,-no-undefined -shared -o"libSTREAMWrapper.so" $(WRAPPER_OBJS) -lboost_python -lutil -lpthread -ldl -ldai -lpython2.6 -lSTREAM
+	g++ -L$(LIB_DAI)/lib -L"." -Wl,-no-undefined -shared -o"libSTREAMWrapper.so" $(WRAPPER_OBJS) $(WRAPPER_LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

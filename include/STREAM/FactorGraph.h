@@ -349,8 +349,17 @@ private:
 	void createFacColorVec(std::vector<size_t> &facColorVec, std::map<size_t,size_t> &facClustering,  std::vector<size_t> &facSigs);
 	void createVarColorVec(std::vector<size_t> &varColorVec, std::map<size_t, size_t> &varClustering,  std::vector<size_t> &varSigs);
 	void createCompressed(const std::map<size_t, size_t> &facClustering, const std::map<size_t, size_t> &varClustering, std::vector<size_t> &facColorVec, std::vector<size_t> &varColorVec);
-	void createCounts();
 
+
+	size_t findFactor( const dai::SmallSet<V> & ns , size_t J) const {
+		size_t I;
+		for( I = 0; I < nrFactors(); I++ )
+			if( factor(I).vars() == ns && (I != J))
+				break;
+		if( I == nrFactors() )
+			DAI_THROW(OBJECT_NOT_FOUND);
+		return I;
+	}
 
 };
 
