@@ -7,6 +7,9 @@ To compile libSTREAM call:
 Prepare PYTHONPATH variable by setting:
 	export PYTHONPATH=$PYTHONPATH:.
 
+Prepare LD_LIBRARY_PATH variable by setting:
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
+
 To test the build call:
 	./src/main/python/compareLiftedSampling.py ./resources/smokers1_3p.fg
 
